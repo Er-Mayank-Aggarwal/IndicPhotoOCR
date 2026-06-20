@@ -1,5 +1,7 @@
 import sys
 import os
+import json
+from pathlib import Path
 import torch
 from PIL import Image
 import cv2
@@ -7,14 +9,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tempfile
 
+# Ensure the package root is on sys.path when running this script directly
+package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if package_root not in sys.path:
+    sys.path.insert(0, package_root)
 
-# from IndicPhotoOCR.detection.east_detector import EASTdetector
-# from IndicPhotoOCR.script_identification.CLIP_identifier import CLIPidentifier
-from IndicPhotoOCR.script_identification.vit.vit_infer import VIT_identifier
+# Standard imports for your pipeline
 from IndicPhotoOCR.recognition.parseq_recogniser import PARseqrecogniser
 import IndicPhotoOCR.detection.east_config as cfg
 from IndicPhotoOCR.detection.textbpn.textbpnpp_detector import TextBPNpp_detector
-
 from IndicPhotoOCR.utils.helper import detect_para
 
 
@@ -29,18 +32,103 @@ class OCR:
             Valid options: ['hindi', 'bengali', 'tamil', 'telugu', 'malayalam', 'kannada',
                             'gujarati', 'marathi', 'punjabi', 'odia', 'assamese', 'urdu', 'meitei']
         verbose (bool): Whether to print detailed processing information.
+        config_path (str): Path to the config.json (Required if using efficientnet).
+        identifier_type (str): 'efficientnet' or 'vit'. Determines which script ID model to load.
     """
-    def __init__(self, device='cuda:0', identifier_lang='hindi', verbose=False):
-        # self.detect_model_checkpoint = detect_model_checkpoint
+    def __init__(self, device='cuda:0', identifier_lang='hindi', verbose=False, 
+                 config_path="config.json", identifier_type="efficientnet"):
+        """
+        Args:
+            device: 'cuda:0' or 'cpu'
+            identifier_lang: Default script identifier model to use.
+            verbose: Print detailed processing info.
+            config_path: Path to the config.json (Required if using efficientnet).
+            identifier_type: 'efficientnet' or 'vit'. Determines which script ID model to load.
+        """
         self.device = device
         self.verbose = verbose
-        # self.image_path = image_path
-        # self.detector = EASTdetector()
+        self.identifier_type = identifier_type.lower()
+        
+        # 1. Initialize Detector and Recogniser (Always needed)
         self.detector = TextBPNpp_detector(device=self.device)
         self.recogniser = PARseqrecogniser()
-        # self.identifier = CLIPidentifier()
-        self.identifier = VIT_identifier()
+        
+        # 2. Dynamically load the chosen Script Identifier
+        if self.verbose:
+            print(f"Initializing {self.identifier_type.upper()} for script identification...")
+
+        if self.identifier_type == "efficientnet":
+            # Only load the config and EfficientNet if explicitly requested
+            print("Using EfficientNet for script identification. Loading config and model...")
+            config_path = self._resolve_config_path(config_path)
+            if not os.path.exists(config_path):
+                raise FileNotFoundError(f"Config file not found at: {config_path}")
+                
+            with open(config_path, "r") as f:
+                self.config = json.load(f)
+                
+            base_dir = os.path.expanduser(self.config["paths"]["base_dir"])
+            model_path = os.path.join(base_dir, self.config["paths"]["save_model_name"])
+            
+            # Conditional import saves memory!
+            from IndicPhotoOCR.script_identification.Efficientnet.efficientnet_identifier import EfficientNetIdentifier
+            
+            self.identifier = EfficientNetIdentifier(
+                checkpoint_path=model_path,
+                classes=self.config["classes"],
+                image_size=self.config["hyperparameters"]["image_size"],
+                device=self.device
+            )
+
+        elif self.identifier_type == "vit":
+            # Conditional import for ViT
+            from IndicPhotoOCR.script_identification.vit.vit_infer import VIT_identifier
+            self.identifier = VIT_identifier()
+
+        else:
+            raise ValueError(f"Invalid identifier_type '{self.identifier_type}'. Please choose 'efficientnet' or 'vit'.")
+        
         self.indentifier_lang = identifier_lang
+
+    def _resolve_config_path(self, config_path):
+        """Resolve config.json path relative to this package and repo root."""
+        if os.path.exists(config_path):
+            return config_path
+
+        package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        candidate = os.path.join(package_root, config_path)
+        if os.path.exists(candidate):
+            return candidate
+
+        candidate = os.path.abspath(os.path.join(package_root, '..', 'script_identification', config_path))
+        if os.path.exists(candidate):
+            return candidate
+
+        candidate = os.path.abspath(os.path.join(package_root, '..', config_path))
+        if os.path.exists(candidate):
+            return candidate
+
+        return config_path
+
+    def _resolve_path(self, path):
+        """Resolve a relative path against the package and repo roots."""
+        if os.path.isabs(path):
+            return path
+
+        if os.path.exists(path):
+            return path
+
+        package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        repo_root = os.path.abspath(os.path.join(package_root, '..'))
+        candidates = [
+            os.path.join(package_root, path),
+            os.path.join(repo_root, path),
+            os.path.join(os.getcwd(), path),
+        ]
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+        return path
 
     # def detect(self, image_path, detect_model_checkpoint=cfg.checkpoint):
     #     """Run the detection model to get bounding boxes of text areas."""
@@ -60,6 +148,7 @@ class OCR:
         Returns:
             list: Detected text bounding boxes.
         """
+        image_path = self._resolve_path(image_path)
         self.detections = self.detector.detect(image_path)
         return self.detections['detections']
 
@@ -165,7 +254,10 @@ class OCR:
         """
         recognized_texts = {}
         recognized_words = []
+        image_path = self._resolve_path(image_path)
         image = cv2.imread(image_path)
+        if image is None:
+            raise ValueError(f"Failed to read the image at {image_path}")
         
         # Run detection
         detections = self.detect(image_path)
