@@ -10,7 +10,7 @@ import json
 model_info = {
     "efficientnet_v2m_sliced": {
         "path": "models/efficientnet",
-        "url": "https://github.com/Er-Mayank-Aggarwal/IndicPhotoOCR/releases/download/efficientnet-model/efficientnetv2_m_sliced.pth",
+        "url": "https://github.com/Er-Mayank-Aggarwal/IndicPhotoOCR/releases/download/efficientnet-model/efficientnetv2_m_sliced_train_data.pth",
         "filename": "efficientnetv2_m_sliced.pth"
     }
 }
