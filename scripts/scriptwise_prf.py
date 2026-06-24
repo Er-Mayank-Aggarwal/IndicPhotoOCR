@@ -198,7 +198,7 @@ def calculate_scriptwise_WER(scriptwise_gt, pred_cleaned):
     print(f"Average F1-score: {sum(language_f.values()) / sum(language_counts.values()):.2f}")
 
 gt_path = "BSTD_v17.57.json"
-pred_path = "IndicPhotoOCR_sliced_v2m.json"
+pred_path = "Your_JSON_Path_Here"
 
 gt_json = load_json(gt_path)
 pred_json = load_json(pred_path)

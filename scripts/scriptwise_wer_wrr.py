@@ -138,7 +138,7 @@ def print_results(stats):
 if __name__ == "__main__":
     # Update these paths as needed
     GT_PATH = "BSTD_v17.57.json"
-    PRED_PATH = "IndicPhotoOCR_sliced_v2m.json"
+    PRED_PATH = "Your_JSON_Path_Here"
 
     gt_data = load_json(GT_PATH)
     pred_data = load_json(PRED_PATH)
