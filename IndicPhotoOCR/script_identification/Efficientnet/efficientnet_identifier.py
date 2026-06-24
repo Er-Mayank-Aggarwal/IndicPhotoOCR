@@ -3,18 +3,56 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 from torchvision.models import efficientnet_v2_m
+import os
+import urllib.request
+import json
+
+model_info = {
+    "efficientnet_v2m_sliced": {
+        "path": "models/efficientnet",
+        "url": "https://github.com/Er-Mayank-Aggarwal/IndicPhotoOCR/releases/download/efficientnet-model/efficientnetv2_m_sliced.pth",
+        "filename": "efficientnetv2_m_sliced.pth"
+    }
+}
+
+def download_model_from_release(model_name, save_path):
+    """
+    Always download a model from GitHub releases.
+    
+    Args:
+        model_name (str): Key in model_info dict
+        save_path (str): Full path where to save the model
+    """
+    if model_name not in model_info:
+        raise ValueError(f"Model '{model_name}' not found in model_info")
+    
+    model_data = model_info[model_name]
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    try:
+        url = model_data["url"]
+        print(f"Downloading model from {url}...")
+        urllib.request.urlretrieve(url, save_path)
+        print(f"Model downloaded successfully to {save_path}")
+    except Exception as e:
+        print(f"Error: Could not download model from release: {e}")
+        raise
 
 class EfficientNetIdentifier:
-    def __init__(self, checkpoint_path, classes, image_size, device='cuda:0'):
+    def __init__(self, checkpoint_path, classes, image_size, device='cuda:0', model_name="efficientnet_v2m_sliced"):
         """
         Args:
             checkpoint_path (str): Path to your saved .pth file.
             classes (list): The list of class names exactly as they are in your config.json.
             image_size (int): The image size used during training (e.g., from config).
             device (str): Compute device.
+            model_name (str): Model key in model_info dict for downloading from GitHub.
         """
         self.device = device
         self.classes = classes
+        
+        # Auto-download model from GitHub release
+        download_model_from_release(model_name, checkpoint_path)
         
         # 1. Initialize EfficientNetV2-M (Matching your training code exactly)
         self.model = efficientnet_v2_m()

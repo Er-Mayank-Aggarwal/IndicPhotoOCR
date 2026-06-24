@@ -175,5 +175,6 @@ test.png
 static/pics/IndicPhotoOCR.gif
 test_images/image_742.jpg
 
-
+scripts/BSTD_v17.57.json
+/scripts/IndicPhotoOCR_sliced_v2m.json
 

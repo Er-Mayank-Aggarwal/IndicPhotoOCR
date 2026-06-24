@@ -67,8 +67,8 @@ class OCR:
             with open(config_path, "r") as f:
                 self.config = json.load(f)
                 
-            base_dir = os.path.expanduser(self.config["paths"]["base_dir"])
-            model_path = os.path.join(base_dir, self.config["paths"]["save_model_name"])
+            base_dir = os.environ.get("INDICPHOTOOCR_BASE_DIR", os.path.expanduser("~/storage"))
+            model_path = os.path.join(base_dir, "efficientnetv2_m_sliced.pth")
             
             # Conditional import saves memory!
             from IndicPhotoOCR.script_identification.Efficientnet.efficientnet_identifier import EfficientNetIdentifier

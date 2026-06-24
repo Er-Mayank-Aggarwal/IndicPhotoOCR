@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6 git wget && \
 # Set environment variables for Miniconda
 ENV CONDA_DIR /opt/conda
 ENV PATH $CONDA_DIR/bin:$PATH
+ENV INDICPHOTOOCR_BASE_DIR=/workspace/storage
+WORKDIR /workspace
 
 # Install Miniconda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
